@@ -34,27 +34,6 @@ $METHOD = $_SERVER['REQUEST_METHOD'];
 $PATH   = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // -------- Config --------
-function load_config(): array {
-    if (!file_exists(CONFIG_FILE)) {
-        return [
-            'rate_limit' => ['default' => ['window_seconds' => 60, 'max_requests' => 60]],
-            'keys' => []
-        ];
-    }
-    $raw = file_get_contents(CONFIG_FILE) ?: '';
-    $cfg = json_decode($raw, true);
-    if (!is_array($cfg)) {
-        return [
-            'rate_limit' => ['default' => ['window_seconds' => 60, 'max_requests' => 60]],
-            'keys' => []
-        ];
-    }
-    $cfg['rate_limit']['default']['window_seconds'] = (int)($cfg['rate_limit']['default']['window_seconds'] ?? 60);
-    $cfg['rate_limit']['default']['max_requests']   = (int)($cfg['rate_limit']['default']['max_requests'] ?? 60);
-    $cfg['keys'] = is_array($cfg['keys'] ?? null) ? $cfg['keys'] : [];
-    return $cfg;
-}
-
 // Load application config and make it available to routes/bootstrap
 require_once __DIR__ . '/../config.php';
 $CONFIG = load_config();
