@@ -20,74 +20,45 @@ try {
     Response::getInstance()->notFound($e->key ?? null, $e->reason);
 }
 
-if ($PATH === '/items') {
-    if ($METHOD === 'GET') {
-        try {
-            $db = $dbService->load();
-        } catch (StorageException $e) {
-            Response::getInstance()->notFound(null, 'STORAGE_ERROR');
-        }
-        $response->sendJson(array_values($db['items']), 200, [], 'ALLOW', 'OK', $auth['key']);
-    }
-    if ($METHOD === 'POST') {
-        $payload = $response->readJsonBody();
-        $name = isset($payload['name']) ? trim((string)$payload['name']) : '';
-        if ($name === '') $response->notFound($auth['key'], 'INPUT_INVALID');
-        try {
-            $db = $dbService->load();
-        } catch (StorageException $e) {
-            Response::getInstance()->notFound(null, 'STORAGE_ERROR');
-        }
-        $id = $db['nextId']++;
-        $item = ['id' => $id, 'name' => $name, 'createdAt' => gmdate('c')];
-        $db['items'][(string)$id] = $item;
-        try {
-            $dbService->save($db);
-        } catch (StorageException $e) {
-            Response::getInstance()->notFound(null, 'STORAGE_ERROR');
-        }
-        $response->sendJson($item, 201, ['Location' => "/items/$id"], 'ALLOW', 'OK', $auth['key']);
-    }
-    $response->notFound(null, 'NOT_FOUND');
-}
+// Define route map. Base name -> modes (noParam/withParam) -> HTTP method -> handler function name
+$routes = [
+    'items' => [
+        'noParam' => [
+            'GET' => function($pathVars, $body, $context) use ($dbService, $response, $auth) {
+                $ids = $dbService->listIds();
+                $items = [];
+                foreach ($ids as $i) {
+                    $it = $dbService->getItem($i);
+                    if ($it !== null) $items[] = $it;
+                }
+                return ['data' => array_values($items), 'status' => 200, 'headers' => [], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
+            },
+            'POST' => function($pathVars, $body, $context) use ($dbService, $response, $auth) {
+                $name = isset($body['name']) ? trim((string)$body['name']) : '';
+                if ($name === '') throw new \Exception('INPUT_INVALID');
+                $item = $dbService->saveItem(['name' => $name]);
+                return ['data' => $item, 'status' => 201, 'headers' => ['Location' => "/items/{$item['id']}"], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
+            }
+        ],
+        'withParam' => [
+            'GET' => function($pathVars, $body, $context) use ($dbService, $response, $auth) {
+                $id = $pathVars['id'] ?? null;
+                $item = $dbService->getItem($id);
+                if (!$item) throw new \Exception('NOT_FOUND');
+                return ['data' => $item, 'status' => 200, 'headers' => [], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
+            },
+            'PUT' => function($pathVars, $body, $context) use ($dbService, $response, $auth) {
+                $id = $pathVars['id'] ?? null;
+                $name = isset($body['name']) ? trim((string)$body['name']) : '';
+                if ($name === '') throw new \Exception('INPUT_INVALID');
+                $item = $dbService->saveItem(['name' => $name], $id);
+                $created = ($item['createdAt'] === $item['lastUpdatedAt']);
+                return ['data' => $item, 'status' => $created ? 201 : 200, 'headers' => $created ? ['Location' => "/items/$id"] : [], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
+            }
+        ]
+    ]
+];
 
-if (preg_match('#^/items/(\d+)$#', $PATH, $m)) {
-    $id = (int)$m[1];
-    if ($METHOD === 'GET') {
-        try {
-            $db = $dbService->load();
-        } catch (StorageException $e) {
-            Response::getInstance()->notFound(null, 'STORAGE_ERROR');
-        }
-        $item = $db['items'][(string)$id] ?? null;
-        if (!$item) $response->notFound($auth['key'], 'NOT_FOUND');
-        $response->sendJson($item, 200, [], 'ALLOW', 'OK', $auth['key']);
-    }
-    if ($METHOD === 'PUT') {
-        $payload = $response->readJsonBody();
-        $name = isset($payload['name']) ? trim((string)$payload['name']) : '';
-        if ($name === '') $response->notFound($auth['key'], 'INPUT_INVALID');
-        try {
-            $db = $dbService->load();
-        } catch (StorageException $e) {
-            Response::getInstance()->notFound(null, 'STORAGE_ERROR');
-        }
-        $exists = isset($db['items'][(string)$id]);
-        $item = [
-            'id'        => $id,
-            'name'      => $name,
-            'updatedAt' => gmdate('c'),
-            'createdAt' => $exists ? ($db['items'][(string)$id]['createdAt'] ?? gmdate('c')) : gmdate('c')
-        ];
-        $db['items'][(string)$id] = $item;
-        try {
-            $dbService->save($db);
-        } catch (StorageException $e) {
-            Response::getInstance()->notFound(null, 'STORAGE_ERROR');
-        }
-        $response->sendJson($item, $exists ? 200 : 201, $exists ? [] : ['Location' => "/items/$id"], 'ALLOW', 'OK', $auth['key']);
-    }
-    $response->notFound(null, 'NOT_FOUND');
-}
+require_once __DIR__ . '/routes-logic.php';
 
-$response->notFound(null, 'NOT_FOUND');
+run_routes($routes, $PATH, $METHOD, $auth, $dbService, $response);
