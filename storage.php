@@ -85,8 +85,16 @@ class Database {
         $dir = dirname($this->dataFile);
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
 
-        $fp = fopen($this->dataFile, 'c+');
-        if (!$fp) throw new StorageException('STORAGE_ERROR', 'Failed to open storage file for writing');
+        // If the target path is an existing directory, treat it as a storage error
+        if (is_dir($this->dataFile)) {
+            throw new StorageException('STORAGE_ERROR', 'Storage path is a directory');
+        }
+
+        // Suppress warnings from fopen and handle failures explicitly so PHPUnit sees the exception
+        $fp = @fopen($this->dataFile, 'c+');
+        if (!$fp) {
+            throw new StorageException('STORAGE_ERROR', 'Failed to open storage file for writing');
+        }
 
         flock($fp, LOCK_EX);
         ftruncate($fp, 0);
