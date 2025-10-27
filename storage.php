@@ -56,11 +56,12 @@ class Database {
 
     /**
      * Load data from the JSON storage file.
+     * (now private - storage internal)
      *
      * @return array ['items'=>array, 'nextId'=>int]
      * @throws StorageException on I/O error
      */
-    public function load(): array {
+    private function load(): array {
         if (!file_exists($this->dataFile)) return ['items' => [], 'nextId' => 1];
 
         $fp = fopen($this->dataFile, 'r');
@@ -77,11 +78,12 @@ class Database {
 
     /**
      * Save data to storage atomically.
+     * (private - internal)
      *
      * @param array $data
      * @throws StorageException on I/O error
      */
-    public function save(array $data): void {
+    private function save(array $data): void {
         $dir = dirname($this->dataFile);
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
 
@@ -103,4 +105,63 @@ class Database {
         flock($fp, LOCK_UN);
         fclose($fp);
     }
+
+    /**
+     * Public: retrieve a single item by id. Returns null if not found.
+     *
+     * @param int $id
+     * @return array|null
+     * @throws StorageException on I/O error
+     */
+    public function getItem(int $id): ?array {
+        $db = $this->load();
+        return $db['items'][(string)$id] ?? null;
+    }
+
+    /**
+     * Public: save an item. If $id is null, a new id is assigned. Otherwise item is created/updated.
+     * Storage decides whether it's a create or update and handles timestamps.
+     * Returns the saved item.
+     *
+     * @param array $userData
+     * @param int|null $id
+     * @return array
+     * @throws StorageException on I/O error
+     */
+    public function saveItem(array $userData, ?int $id = null): array {
+        $db = $this->load();
+        $now = gmdate('c');
+
+        if ($id === null) {
+            $id = $db['nextId']++;
+            $created = $now;
+        } else {
+            $key = (string)$id;
+            $created = isset($db['items'][$key]['createdAt']) ? $db['items'][$key]['createdAt'] : $now;
+        }
+
+        $item = $userData;
+        $item['id'] = $id;
+        $item['createdAt'] = $created;
+        $item['lastUpdatedAt'] = $now;
+
+        $db['items'][(string)$id] = $item;
+        $db['nextId'] = $db['nextId'] ?? 1;
+        $this->save($db);
+        return $item;
+    }
+
+    /**
+     * Public: return a list of available ids (as ints)
+     *
+     * @return int[]
+     * @throws StorageException on I/O error
+     */
+    public function listIds(): array {
+        $db = $this->load();
+        $keys = array_keys($db['items']);
+        sort($keys, SORT_NUMERIC);
+        return array_map('intval', $keys);
+    }
+    
 }
