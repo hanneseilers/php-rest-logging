@@ -33,6 +33,7 @@ $routes = [
                 }
                 return ['data' => array_values($items), 'status' => 200, 'headers' => [], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
             },
+
             'POST' => function($pathVars, $body, $context) use ($dbService, $response, $auth) {
                 $name = isset($body['name']) ? trim((string)$body['name']) : '';
                 if ($name === '') throw new \Exception('INPUT_INVALID');
@@ -40,6 +41,7 @@ $routes = [
                 return ['data' => $item, 'status' => 201, 'headers' => ['Location' => "/items/{$item['id']}"], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
             }
         ],
+
         'withParam' => [
             'GET' => function($pathVars, $body, $context) use ($dbService, $response, $auth) {
                 $id = $pathVars['id'] ?? null;
@@ -47,6 +49,7 @@ $routes = [
                 if (!$item) throw new \Exception('NOT_FOUND');
                 return ['data' => $item, 'status' => 200, 'headers' => [], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
             },
+            
             'PUT' => function($pathVars, $body, $context) use ($dbService, $response, $auth) {
                 $id = $pathVars['id'] ?? null;
                 $name = isset($body['name']) ? trim((string)$body['name']) : '';
