@@ -1,1 +1,0 @@
-{"version":1,"defects":{"DatabaseTest::testSaveFailsThrowsStorageException":4},"times":{"DatabaseTest::testLoadWhenFileMissingReturnsDefault":0.02,"DatabaseTest::testSaveAndLoadRoundtrip":0.001,"DatabaseTest::testSaveFailsThrowsStorageException":0.002}}
