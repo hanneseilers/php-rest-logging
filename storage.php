@@ -55,14 +55,14 @@ class Database {
     }
 
     /**
-     * Load data from the JSON storage file.
-     * (now private - storage internal)
-     *
-     * @return array ['items'=>array, 'nextId'=>int]
+      * Load data from the JSON storage file.
+      * (now private - storage internal)
+      *
+      * @return array ['items'=>array]
      * @throws StorageException on I/O error
      */
     private function load(): array {
-        if (!file_exists($this->dataFile)) return ['items' => [], 'nextId' => 1];
+        if (!file_exists($this->dataFile)) return ['items' => []];
 
         $fp = fopen($this->dataFile, 'r');
         if (!$fp) throw new StorageException('STORAGE_ERROR', 'Failed to open storage file for reading');
@@ -72,8 +72,6 @@ class Database {
             if (is_dir($this->dataFile)) {
                 throw new StorageException('STORAGE_ERROR', 'Storage path is a directory');
             }
-
-            if (!file_exists($this->dataFile)) return ['items' => [], 'nextId' => 1];
 
             // Suppress warnings from fopen/stream_get_contents and handle failures explicitly
             $fp = @fopen($this->dataFile, 'r');
@@ -86,7 +84,11 @@ class Database {
         fclose($fp);
 
         $data = json_decode($json, true);
-        return (is_array($data) && isset($data['items'], $data['nextId'])) ? $data : ['items' => [], 'nextId' => 1];
+        if (is_array($data) && isset($data['items']) && is_array($data['items'])) {
+            return ['items' => $data['items']];
+        }
+
+        return ['items' => []];
     }
 
     /**
@@ -146,7 +148,7 @@ class Database {
         $now = gmdate('c');
 
         if ($id === null) {
-            $id = $db['nextId']++;
+            $id = $this->getNextId();
             $created = $now;
         } else {
             $key = (string)$id;
@@ -159,7 +161,6 @@ class Database {
         $item['lastUpdatedAt'] = $now;
 
         $db['items'][(string)$id] = $item;
-        $db['nextId'] = $db['nextId'] ?? 1;
         $this->save($db);
         return $item;
     }
