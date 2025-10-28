@@ -176,5 +176,18 @@ class Database {
         sort($keys, SORT_NUMERIC);
         return array_map('intval', $keys);
     }
+
+    /**
+     * Public: compute the next id based on existing ids (highest + 1).
+     * Returns 1 when no ids exist.
+     *
+     * @return int
+     * @throws StorageException on I/O error
+     */
+    public function getNextId(): int {
+        $ids = $this->listIds();
+        if (empty($ids)) return 1;
+        return max($ids) + 1;
+    }
     
 }

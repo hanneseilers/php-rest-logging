@@ -61,6 +61,17 @@ class StorageTest extends TestCase {
         $this->assertNull($db->getItem(9999));
     }
 
+    public function testGetNextIdEmptyAndAfterSaves(): void {
+        $db = \Database::getInstance($this->tmpFile);
+        // when empty
+        $this->assertSame(1, $db->getNextId());
+
+        $a = $db->saveItem(['name' => 'one']);
+        $b = $db->saveItem(['name' => 'two']);
+
+        $this->assertSame(max([$a['id'], $b['id']]) + 1, $db->getNextId());
+    }
+
     public function testSaveItemToDirectoryPathThrowsStorageException(): void {
         $dirPath = sys_get_temp_dir() . '/php_rest_storage_test_dir_' . bin2hex(random_bytes(6));
         mkdir($dirPath, 0775);
