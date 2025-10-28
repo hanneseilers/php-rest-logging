@@ -18,7 +18,7 @@ class RoutesLogicTest extends TestCase {
         ];
 
         $response = new class {
-            public function readJsonBody(): array { return []; }
+            public function readJsonBody() { return null; }
         };
 
         $res = run_routes($routes, '/items', 'GET', $response);
@@ -40,7 +40,7 @@ class RoutesLogicTest extends TestCase {
         ];
 
         $response = new class {
-            public function readJsonBody(): array { return []; }
+            public function readJsonBody() { return null; }
         };
 
         $res = run_routes($routes, '/widgets/42', 'GET', $response);
@@ -55,14 +55,14 @@ class RoutesLogicTest extends TestCase {
                 'noParam' => ['GET' => function($vars, $body) { return 'not an array'; }]
             ]
         ];
-        $response = new class { public function readJsonBody(): array { return []; } };
+    $response = new class { public function readJsonBody() { return null; } };
         run_routes($routes, '/things', 'GET', $response);
     }
 
     public function testUnknownRouteThrows(): void {
         $this->expectException(Exception::class);
         $routes = [];
-        $response = new class { public function readJsonBody(): array { return []; } };
+    $response = new class { public function readJsonBody() { return null; } };
         run_routes($routes, '/missing', 'GET', $response);
     }
 
@@ -73,7 +73,7 @@ class RoutesLogicTest extends TestCase {
                 'noParam' => ['GET' => 'not_a_function']
             ]
         ];
-        $response = new class { public function readJsonBody(): array { return []; } };
+    $response = new class { public function readJsonBody() { return null; } };
         run_routes($routes, '/nope', 'GET', $response);
     }
 
@@ -84,14 +84,14 @@ class RoutesLogicTest extends TestCase {
                 'noParam' => ['GET' => function() { throw new \Exception('boom'); }]
             ]
         ];
-        $response = new class { public function readJsonBody(): array { return []; } };
+    $response = new class { public function readJsonBody() { return null; } };
         run_routes($routes, '/boom', 'GET', $response);
     }
 
     public function testPathWithTooManySegmentsThrows(): void {
         $this->expectException(Exception::class);
         $routes = [ 'a' => [ 'noParam' => ['GET' => function() { return ['data'=>[]]; } ] ] ];
-        $response = new class { public function readJsonBody(): array { return []; } };
+    $response = new class { public function readJsonBody() { return null; } };
         run_routes($routes, '/a/b/c', 'GET', $response);
     }
 }
