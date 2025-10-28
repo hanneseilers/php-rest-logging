@@ -117,6 +117,8 @@ class RateLimiter {
         $fp = fopen($file, 'c+');
         if (!$fp) return false;
         flock($fp, LOCK_EX);
+        // Ensure we read from the start of the file (pointer may be at EOF after previous writes)
+        fseek($fp, 0);
         $json = stream_get_contents($fp);
         if ($json !== false && $json !== '') {
             $tmp = json_decode($json, true);
@@ -127,12 +129,12 @@ class RateLimiter {
             $state['count'] = 0;
         }
         if ($state['count'] >= $maxRequests) {
-            ftruncate($fp, 0); fwrite($fp, json_encode($state)); fflush($fp);
+            ftruncate($fp, 0); fseek($fp, 0); fwrite($fp, json_encode($state)); fflush($fp);
             flock($fp, LOCK_UN); fclose($fp);
             return false;
         }
         $state['count']++;
-        ftruncate($fp, 0); fwrite($fp, json_encode($state)); fflush($fp);
+        ftruncate($fp, 0); fseek($fp, 0); fwrite($fp, json_encode($state)); fflush($fp);
         flock($fp, LOCK_UN); fclose($fp);
         return true;
     }
