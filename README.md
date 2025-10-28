@@ -124,3 +124,52 @@ curl -i -X PUT -H "X-API-Key: demo-key-123" -H "Content-Type: application/json" 
 ---
 
 If you'd like, I can also tidy `routes.php` into a small router helper or add CI checks (php -l / phpunit).
+
+## Code checks & running tests
+
+Quick commands to validate the code and run the unit test suite locally:
+
+- Install dependencies (if you haven't already):
+
+```bash
+composer install
+```
+
+- PHP syntax check (single file):
+
+```bash
+php -l path/to/file.php
+```
+
+- PHP syntax check (all project files, skip vendor):
+
+```bash
+find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 php -l
+```
+
+- Run PHPUnit test suite:
+
+```bash
+vendor/bin/phpunit --colors=always
+```
+
+Strict test mode
+----------------
+
+During development you may want deprecations and notices to fail tests so they are fixed immediately. The test bootstrap (`tests/bootstrap.php`) includes an optional strict error handler that converts deprecations and notices into exceptions. Enable it by setting the `TEST_STRICT_ERRORS` environment variable to `1` when running PHPUnit:
+
+```bash
+TEST_STRICT_ERRORS=1 vendor/bin/phpunit --colors=always
+```
+
+When the env var is not set, the test suite will run without converting notices/deprecations to exceptions (the default for CI or casual runs).
+
+- Run a single test or method:
+
+```bash
+vendor/bin/phpunit --filter ClassName::methodName
+```
+
+Notes:
+- If Composer fails due to an extension (for example `ext-dom`), install the corresponding PHP package (on Debian/Ubuntu: `sudo apt install php-xml`) or adjust your environment.
+- This project is tested with PHPUnit 10 on PHP 8.1+. If your local PHP version is newer, ensure `composer.json` requires a compatible PHPUnit version.
