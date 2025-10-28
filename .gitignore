@@ -16,4 +16,4 @@ composer.lock
 .env
 
 # phpUnit Cache
-.phpunit.result.cache
+.phpunit*/*

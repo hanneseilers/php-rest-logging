@@ -68,7 +68,20 @@ class Database {
         if (!$fp) throw new StorageException('STORAGE_ERROR', 'Failed to open storage file for reading');
 
         flock($fp, LOCK_SH);
-        $json = stream_get_contents($fp) ?: '';
+            // If the storage path points at a directory, treat it as an explicit storage error
+            if (is_dir($this->dataFile)) {
+                throw new StorageException('STORAGE_ERROR', 'Storage path is a directory');
+            }
+
+            if (!file_exists($this->dataFile)) return ['items' => [], 'nextId' => 1];
+
+            // Suppress warnings from fopen/stream_get_contents and handle failures explicitly
+            $fp = @fopen($this->dataFile, 'r');
+            if (!$fp) throw new StorageException('STORAGE_ERROR', 'Failed to open storage file for reading');
+
+            flock($fp, LOCK_SH);
+            $json = @stream_get_contents($fp);
+            $json = $json ?: '';
         flock($fp, LOCK_UN);
         fclose($fp);
 

@@ -71,8 +71,10 @@ class Response {
 
     /**
      * Prevent unserializing of the singleton.
+     *
+     * Must be public to satisfy PHP magic method visibility requirements.
      */
-    private function __wakeup() {}
+    public function __wakeup(): void {}
 
     /**
      * Send a JSON response, log the access and exit.

@@ -1,59 +1,126 @@
-# PHP REST Demo (logging + API keys + rate limits)
+# PHP REST Demo (logging, API keys, rate limits)
 
-Dependency-free REST API in pure PHP.
+Small, dependency-free REST API in plain PHP. This project demonstrates:
 
-## Structure
+- API-key based authorization with per-key route scopes
+- Per-key rate limits with a global default
+- Simple JSON line logging for every request
+
+## Project layout
 
 ```
 php-rest-logging/
   public/
-    index.php
-    .htaccess
+    index.php        # front controller, sets $METHOD/$PATH and bootstraps
   config/
-    config.json
+    config.json      # keys, routes and rate limit settings
   storage/
-    data.json
-    ratelimit/
+    data.json        # persistent app data
+    ratelimit/       # per-key rate-limit state files
   logs/
-    api.log
-  .gitignore
+    api.log          # JSON-per-line request log
+  routes.php         # central routing / dispatch (edit this to add routes)
+  access.php         # authorization / rate-limit logic
+  response.php       # response helper and logging
+  storage.php        # simple file-based storage wrapper
+  logging.php        # logger helper
+  tests/             # unit tests
   README.md
 ```
 
-## Run (built-in server)
+## Run (development)
+
+Use PHP's built-in server:
 
 ```bash
 php -S localhost:8080 -t public
 ```
 
-## Config
+## Config (`config/config.json`)
 
-- `config/config.json` holds API keys, routes/scopes and rate limits.
-- Default rate limits under `rate_limit.default`, per-key overrides under each key's `rate_limit`.
+`config/config.json` contains the global defaults and per-key entries. Important fields:
+
+- `rate_limit.default` — default window_seconds and max_requests
+- `keys` — map of API keys to allowed `routes`, `scopes` and optional per-key `rate_limit`
+
+Example snippet:
+
+```json
+{
+  "rate_limit": { "default": { "window_seconds": 60, "max_requests": 100 } },
+  "keys": {
+    "demo-key-123": {
+      "routes": ["GET:/items","GET:/items/{id}","POST:/items","PUT:/items/{id}"],
+      "scopes": ["read","write"],
+      "rate_limit": { "window_seconds": 60, "max_requests": 10 }
+    }
+  }
+}
+```
+
+Routes are expressed as `METHOD:/path` where `{id}` is a numeric parameter recognized by the authorizer.
 
 ## Logging
 
-- File: `logs/api.log`
-- Format (single-line JSON per request):
-  ```
-  {"ts":"2025-01-01T12:00:00Z","ip":"203.0.113.5","method":"GET","path":"/items","status":200,"outcome":"ALLOW","key":"demo-key-123","reason":"OK"}
-  {"ts":"2025-01-01T12:00:05Z","ip":"203.0.113.5","method":"POST","path":"/items","status":404,"outcome":"DENY","key":"(none)","reason":"NO_KEY"}
-  {"ts":"2025-01-01T12:00:42Z","ip":"203.0.113.5","method":"GET","path":"/items/1","status":404,"outcome":"DENY","key":"readonly-abc","reason":"RATE_LIMIT"}
-  ```
-- Suitable for Fail2Ban custom filter (e.g., ban on repeated `"outcome":"DENY"`).
+Logs are written to `logs/api.log` — one JSON object per request. Fields include timestamp, IP,
+method, path, response status, outcome (ALLOW or DENY), key and reason. This format is convenient
+for downstream parsing and integrating with tools like Fail2Ban.
+
+## How to add routes (edit `routes.php`)
+
+`routes.php` contains simple dispatch logic using `$METHOD` and `$PATH`. Authorization is run once
+at the top and on failure the authorizer calls `Response::notFound()` and exits. Use the `$response`
+and `$dbService` helpers present in the file.
+
+Simple static route example (status endpoint):
+
+```php
+// after authorizer and helpers are initialized
+if ($PATH === '/status' && $METHOD === 'GET') {
+    $response->sendJson(['status' => 'ok', 'time' => gmdate('c')], 200, [], 'ALLOW', 'OK', $auth['key'] ?? null);
+}
+```
+
+Parameterized route (numeric id) with storage access:
+
+```php
+if (preg_match('#^/widgets/(\d+)$#', $PATH, $m)) {
+    $id = (int)$m[1];
+    if ($METHOD === 'GET') {
+        try {
+            $db = $dbService->load();
+        } catch (StorageException $e) {
+            Response::getInstance()->notFound(null, 'STORAGE_ERROR');
+        }
+        $widget = $db['widgets'][(string)$id] ?? null;
+        if (!$widget) $response->notFound($auth['key'], 'NOT_FOUND');
+        $response->sendJson($widget, 200, [], 'ALLOW', 'OK', $auth['key']);
+    }
+    // add other methods (PUT/DELETE) as needed
+}
+```
+
+Notes:
+- Use `Response::sendJson()` for responses and `Response::notFound()` to keep error/logging behaviour consistent.
+- Read JSON request bodies with `$response->readJsonBody()`.
+- Persist via `$dbService->load()` / `$dbService->save()`.
 
 ## Example cURL
 
 ```bash
-# List
+# list items
 curl -i -H "X-API-Key: demo-key-123" http://localhost:8080/items
 
-# Create
-curl -i -H "X-API-Key: demo-key-123" -H "Content-Type: application/json"   -d '{"name":"Foo"}' http://localhost:8080/items
+# create
+curl -i -H "X-API-Key: demo-key-123" -H "Content-Type: application/json" -d '{"name":"Foo"}' http://localhost:8080/items
 
-# Read one
+# read
 curl -i -H "X-API-Key: readonly-abc" http://localhost:8080/items/1
 
-# Update
-curl -i -X PUT -H "X-API-Key: demo-key-123" -H "Content-Type: application/json"   -d '{"name":"Foo v2"}' http://localhost:8080/items/1
+# update
+curl -i -X PUT -H "X-API-Key: demo-key-123" -H "Content-Type: application/json" -d '{"name":"Foo v2"}' http://localhost:8080/items/1
 ```
+
+---
+
+If you'd like, I can also tidy `routes.php` into a small router helper or add CI checks (php -l / phpunit).
