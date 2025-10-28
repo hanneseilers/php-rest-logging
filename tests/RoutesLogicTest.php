@@ -65,4 +65,33 @@ class RoutesLogicTest extends TestCase {
         $response = new class { public function readJsonBody(): array { return []; } };
         run_routes($routes, '/missing', 'GET', $response);
     }
+
+    public function testNonCallableHandlerThrows(): void {
+        $this->expectException(Exception::class);
+        $routes = [
+            'nope' => [
+                'noParam' => ['GET' => 'not_a_function']
+            ]
+        ];
+        $response = new class { public function readJsonBody(): array { return []; } };
+        run_routes($routes, '/nope', 'GET', $response);
+    }
+
+    public function testHandlerExceptionPropagates(): void {
+        $this->expectException(Exception::class);
+        $routes = [
+            'boom' => [
+                'noParam' => ['GET' => function() { throw new \Exception('boom'); }]
+            ]
+        ];
+        $response = new class { public function readJsonBody(): array { return []; } };
+        run_routes($routes, '/boom', 'GET', $response);
+    }
+
+    public function testPathWithTooManySegmentsThrows(): void {
+        $this->expectException(Exception::class);
+        $routes = [ 'a' => [ 'noParam' => ['GET' => function() { return ['data'=>[]]; } ] ] ];
+        $response = new class { public function readJsonBody(): array { return []; } };
+        run_routes($routes, '/a/b/c', 'GET', $response);
+    }
 }

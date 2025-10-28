@@ -60,4 +60,47 @@ class DatabaseTest extends TestCase {
         // cleanup
         if (is_dir($dirPath)) @rmdir($dirPath);
     }
+
+    public function testLoadWithCorruptJsonReturnsEmpty(): void {
+        // create a corrupt json file
+        file_put_contents($this->tmpFile, "{ this is not: json,,}\n");
+
+        $db = \Database::getInstance($this->tmpFile);
+
+        // load should treat corrupt JSON as empty storage per implementation
+        $ids = $db->listIds();
+        $this->assertIsArray($ids);
+        $this->assertSame([], $ids);
+    }
+
+    public function testLegacyNextIdInFileIsIgnored(): void {
+        // create a legacy-style file that contains a nextId along with items
+        $payload = [
+            'nextId' => 123,
+            'items' => [
+                '1' => ['id' => 1, 'name' => 'legacy']
+            ]
+        ];
+        file_put_contents($this->tmpFile, json_encode($payload));
+
+        $db = \Database::getInstance($this->tmpFile);
+
+        // getNextId should compute based on existing ids, not use persisted nextId
+        $this->assertSame(2, $db->getNextId());
+    }
+
+    public function testSaveWithZeroOrNegativeIdUsesProvidedId(): void {
+        $db = \Database::getInstance($this->tmpFile);
+
+        $itemZero = $db->saveItem(['name' => 'zero'], 0);
+        $this->assertSame(0, $itemZero['id']);
+        $this->assertSame('zero', $db->getItem(0)['name']);
+
+        $itemNeg = $db->saveItem(['name' => 'neg'], -5);
+        $this->assertSame(-5, $itemNeg['id']);
+        $this->assertSame('neg', $db->getItem(-5)['name']);
+
+        // getNextId should still compute max + 1 (max of -5,0 is 0 -> next is 1)
+        $this->assertSame(1, $db->getNextId());
+    }
 }

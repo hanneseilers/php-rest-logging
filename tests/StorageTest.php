@@ -100,6 +100,20 @@ class StorageTest extends TestCase {
         $this->assertSame(6, $db->getNextId());
     }
 
+    public function testSaveWithExistingIdOverwritesAndUpdatesTimestamps(): void {
+        $db = \Database::getInstance($this->tmpFile);
+        $item = $db->saveItem(['name' => 'orig']);
+        $id = $item['id'];
+        $created = $item['createdAt'];
+
+        sleep(1);
+        $updated = $db->saveItem(['name' => 'updated'], $id);
+        $this->assertSame($id, $updated['id']);
+        $this->assertSame($created, $updated['createdAt']);
+        $this->assertNotSame($created, $updated['lastUpdatedAt']);
+        $this->assertSame('updated', $updated['name']);
+    }
+
     public function testSaveItemToDirectoryPathThrowsStorageException(): void {
         $dirPath = sys_get_temp_dir() . '/php_rest_storage_test_dir_' . bin2hex(random_bytes(6));
         mkdir($dirPath, 0775);
