@@ -20,26 +20,29 @@ class DatabaseTest extends TestCase {
     public function testLoadWhenFileMissingReturnsDefault(): void {
         if (file_exists($this->tmpFile)) @unlink($this->tmpFile);
         $db = \Database::getInstance($this->tmpFile);
-        $data = $db->load();
 
-        $this->assertIsArray($data);
-        $this->assertArrayHasKey('items', $data);
-        $this->assertArrayHasKey('nextId', $data);
-        $this->assertSame([], $data['items']);
-        $this->assertSame(1, $data['nextId']);
+        // When file is missing, listing ids returns empty and next id will be assigned on save
+        $ids = $db->listIds();
+        $this->assertIsArray($ids);
+        $this->assertSame([], $ids);
     }
 
     public function testSaveAndLoadRoundtrip(): void {
         $db = \Database::getInstance($this->tmpFile);
-        $payload = ['items' => [['id' => 1, 'value' => 'x']], 'nextId' => 2];
-        $db->save($payload);
+
+        // Save an item using the public API
+        $item = $db->saveItem(['value' => 'x']);
+        $this->assertArrayHasKey('id', $item);
+        $id = $item['id'];
 
         // Reset instance to force re-read from file
         \Database::resetInstance();
         $db2 = \Database::getInstance($this->tmpFile);
-        $loaded = $db2->load();
+        $loaded = $db2->getItem($id);
 
-        $this->assertSame($payload, $loaded);
+        $this->assertIsArray($loaded);
+        $this->assertSame($id, $loaded['id']);
+        $this->assertSame('x', $loaded['value']);
     }
 
     public function testSaveFailsThrowsStorageException(): void {
@@ -51,7 +54,8 @@ class DatabaseTest extends TestCase {
 
         // Initialize Database with the path that points to a directory
         $db = \Database::getInstance($dirPath);
-        $db->save(['items' => [], 'nextId' => 1]);
+        // Attempting to save an item should throw StorageException because path is a directory
+        $db->saveItem(['value' => 'y']);
 
         // cleanup
         if (is_dir($dirPath)) @rmdir($dirPath);
