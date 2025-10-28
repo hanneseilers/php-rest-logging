@@ -97,7 +97,12 @@ class Logger {
     /**
      * Prevent unserializing of the singleton.
      */
-    private function __wakeup() {}
+    /**
+     * Prevent unserializing of the singleton.
+     *
+     * Must be public to satisfy PHP magic method visibility requirements.
+     */
+    public function __wakeup(): void {}
 
     /**
      * Determine client IP (prefers X-Forwarded-For).
