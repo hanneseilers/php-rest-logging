@@ -45,6 +45,11 @@ function run_routes(array $routes, string $path, string $method, $response): arr
     // read request body once and pass to handlers
     $body = $response->readJsonBody();
 
+    // If the body is an empty array, treat this as invalid input for handlers
+    if (is_array($body) && count($body) === 0) {
+        throw new \Exception('INVALID INPUT');
+    }
+
     $result = call_user_func($handler, $pathVars, $body);
 
     if (is_array($result) && array_key_exists('data', $result)) {

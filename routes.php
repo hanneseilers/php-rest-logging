@@ -33,10 +33,8 @@ $routes = [
                 }
                 return ['data' => array_values($items), 'status' => 200, 'headers' => [], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
             },
-            'POST' => function($pathVars, $body) use ($dbService, $auth) {
-                $name = isset($body['name']) ? trim((string)$body['name']) : '';
-                if ($name === '') throw new \Exception('INPUT_INVALID');
-                $item = $dbService->saveItem(['name' => $name]);
+            'POST' => function($pathVars, $body) use ($dbService, $auth) {            
+                $item = $dbService->saveItem($body);
                 return ['data' => $item, 'status' => 201, 'headers' => ['Location' => "/items/{$item['id']}"], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
             }
         ],
@@ -49,9 +47,8 @@ $routes = [
             },
             'PUT' => function($pathVars, $body) use ($dbService, $auth) {
                 $id = $pathVars['id'] ?? null;
-                $name = isset($body['name']) ? trim((string)$body['name']) : '';
-                if ($name === '') throw new \Exception('INPUT_INVALID');
-                $item = $dbService->saveItem(['name' => $name], $id);
+                if (!json_validate($body)) throw new \Exception('INPUT_INVALID');
+                $item = $dbService->saveItem($body, $id);
                 $created = ($item['createdAt'] === $item['lastUpdatedAt']);
                 return ['data' => $item, 'status' => $created ? 201 : 200, 'headers' => $created ? ['Location' => "/items/$id"] : [], 'outcome' => 'ALLOW', 'reason' => 'OK', 'key' => $auth['key'] ?? null];
             }
