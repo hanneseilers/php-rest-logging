@@ -1,15 +1,6 @@
 <?php
 
-/**
- * StorageException
- *
- * Exception thrown when storage operations cannot be completed.
- */
-class StorageException extends \Exception {
-    public function __construct(string $reason = 'STORAGE_ERROR', string $message = '') {
-        parent::__construct($message ?: $reason);
-    }
-}
+require_once __DIR__ . '/exceptions.php';
 
 /**
  * Database

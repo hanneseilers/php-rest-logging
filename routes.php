@@ -68,6 +68,9 @@ try {
 } catch (StorageException $e) {
     // storage errors map to STORAGE_ERROR
     $response->notFound($auth['key'] ?? null, 'STORAGE_ERROR');
+} catch (InvalidInputException $e) {
+    // Invalid input should produce a 400 Bad Request response
+    $response->sendJson(['error' => 'Invalid input'], 400, [], 'DENY', 'INVALID_INPUT', $auth['key'] ?? null);
 } catch (\Exception $e) {
     // propagate auth info for notFound
     $reason = $e->getMessage() ?: 'NOT_FOUND';
